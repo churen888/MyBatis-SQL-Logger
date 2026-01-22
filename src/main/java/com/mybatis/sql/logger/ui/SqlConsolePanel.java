@@ -87,8 +87,55 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
 
         // 注册监听器
         SqlConsoleService.getInstance(project).addListener(this);
+        
+        // 显示欢迎信息
+        showWelcomeMessage();
     }
     
+    /**
+     * 显示欢迎信息
+     */
+    private void showWelcomeMessage() {
+        // 构建欢迎信息文本
+        StringBuilder welcome = new StringBuilder();
+        welcome.append("═".repeat(80)).append("\n");
+        welcome.append("🎉 欢迎使用 MyBatis SQL Beautifier 插件 🎉\n");
+        welcome.append("─".repeat(80)).append("\n");
+        welcome.append("💡 功能特性:\n");
+        welcome.append("   • 自动捕获并格式化 MyBatis/MyBatis-Plus SQL 日志\n");
+        welcome.append("   • 实时替换 SQL 参数，展示完整的可执行 SQL\n");
+        welcome.append("   • 支持 SQL 语法高亮和颜色区分（查询/插入/更新/删除）\n");
+        welcome.append("   • 可编辑模式，支持手动修改和复制 SQL\n");
+        welcome.append("\n");
+        welcome.append("👨\u200d💻 作者：程序员 curen\n");
+        welcome.append("📧 反馈邮箱：1139632166@qq.com\n");
+        welcome.append("\n");
+        welcome.append("🔔 提示：请确保项目开启了 MyBatis 日志输出（DEBUG 级别）\n");
+        welcome.append("═".repeat(80)).append("\n\n");
+        
+        String welcomeText = welcome.toString();
+        
+        // 在 SQL Console 中显示
+        ApplicationManager.getApplication().invokeLater(() -> {
+            WriteCommandAction.runWriteCommandAction(project, () -> {
+                editor.getDocument().setText(welcomeText);
+                
+                // 为欢迎信息添加颜色（使用青色）
+                Color welcomeColor = new Color(0, 150, 136); // 青绿色
+                TextAttributes attributes = new TextAttributes();
+                attributes.setForegroundColor(welcomeColor);
+                
+                RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(
+                        0, editor.getDocument().getTextLength(),
+                        HighlighterLayer.SYNTAX,
+                        attributes,
+                        HighlighterTargetArea.EXACT_RANGE
+                );
+                highlighters.add(highlighter);
+            });
+        });
+    }
+
     /**
      * 添加右键菜单
      */

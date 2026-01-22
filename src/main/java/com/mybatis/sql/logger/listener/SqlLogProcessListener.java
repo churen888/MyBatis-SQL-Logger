@@ -23,24 +23,7 @@ public class SqlLogProcessListener implements ProcessListener {
 
     @Override
     public void startNotified(@NotNull ProcessEvent event) {
-        // 进程启动时初始化 - 插入一条测试 SQL 验证插件是否工作
-        try {
-            // 创建一条测试 SQL
-            SqlLogParser.ParsedSql testSql = new SqlLogParser.ParsedSql(
-                "SELECT * FROM test",
-                "SELECT *\nFROM test",
-                "🔎 QUERY",
-                SqlLogParser.SqlType.QUERY,
-                new java.util.ArrayList<>()
-            );
-            
-            // 发送到 SQL Console
-            SqlConsoleService.getInstance(project).addSql(testSql);
-            System.out.println("[MyBatis SQL Logger] Test SQL inserted on process start");
-        } catch (Exception e) {
-            System.err.println("[MyBatis SQL Logger] Failed to insert test SQL: " + e.getMessage());
-            e.printStackTrace();
-        }
+        // 进程启动时初始化
     }
 
     @Override
