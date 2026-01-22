@@ -16,23 +16,39 @@
 - **SQL控制台内容编辑功能**: 支持在SQL Console中直接编辑、删除和添加内容
   - 将编辑器从只读模式改为可编辑模式
   - 支持所有标准文本编辑操作（输入、删除、复制、粘贴等）
-  - 右键菜单新增"删除选中内容"功能
+  - 右键菜单新增“删除选中内容”功能
   - 可使用快捷键进行编辑操作（Delete、Backspace、Ctrl+C/V/X等）
   - 支持在任意位置点击光标并输入新内容
+
+- **启动欢迎信息**: 插件启动时在Run控制台和SQL Console显示欢迎信息
+  - 展示插件功能特性
+  - 显示作者信息：程序员 curen
+  - 提供反馈邮箱：1139632166@qq.com
+  - 使用 emoji 增强视觉效果
+
+### 🐛 问题修复
+- 修复文档修改必须使用 WriteCommandAction 而非 runWriteAction 的错误
+- 修复用户编辑内容被新SQL覆盖的问题（改用 insertString 而非 setText）
+- 修复删除的SQL被恢复的问题（移除历史记录加载逻辑）
+- 修复滚动到底部功能不生效（改为操作 JBScrollPane 滚动条）
 
 ### 🔧 优化改进
 - 优化工具栏布局，添加分隔线提升视觉层次
 - 改进用户交互体验，增强日志查看和编辑的便捷性
 - 增强右键菜单功能，根据是否有选中内容智能显示操作选项
-- 修复滚动到底部功能，改为操作JBScrollPane的滚动条而非Editor本身
+- 优化内存管理，移除 SqlConsoleService 中的 SQL 历史缓存避免内存泄漏
+- 简化 SQL 添加逻辑，直接通知监听器而不缓存
 
 ### 📝 技术实现
 - 新增 `ToggleListeningAction.java` - 实现监听开关切换
 - 新增 `ScrollToBottomAction.java` - 实现快速跳转功能
 - 扩展 `SqlConsoleService.java` - 添加监听状态管理
-- 更新 `SqlConsolePanel.java` - 集成新功能到工具栏，添加编辑功能和滚动控制
+- 重构 `SqlConsolePanel.java` - 集成新功能，实现可编辑模式和欢迎信息
+- 优化 `SqlLogExecutionListener.java` - 添加 ConsoleView 输出欢迎信息功能
 - 添加 `deleteSelectedText()` 方法 - 实现选中内容删除功能
 - 添加 `scrollToBottom()` 方法 - 正确控制滚动面板滚动到底部
+- 添加 `showWelcomeMessage()` 方法 - 在 UI 中显示欢迎信息
+- 添加 `printWelcomeMessage()` 方法 - 在控制台输出欢迎信息
 
 ---
 
