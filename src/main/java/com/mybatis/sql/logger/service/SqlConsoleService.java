@@ -15,7 +15,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Service(Service.Level.PROJECT)
 public final class SqlConsoleService {
 
-    private final List<SqlLogParser.ParsedSql> sqlList = new CopyOnWriteArrayList<>();
     private final List<SqlConsoleListener> listeners = new CopyOnWriteArrayList<>();
     private volatile boolean isListening = true; // 默认开启监听
 
@@ -31,7 +30,7 @@ public final class SqlConsoleService {
         if (!isListening) {
             return;
         }
-        sqlList.add(parsedSql);
+        // 直接通知监听器，不再缓存
         notifyListeners(parsedSql);
     }
 
@@ -50,17 +49,9 @@ public final class SqlConsoleService {
     }
 
     /**
-     * 获取所有 SQL
-     */
-    public List<SqlLogParser.ParsedSql> getAllSql() {
-        return new ArrayList<>(sqlList);
-    }
-
-    /**
-     * 清空 SQL
+     * 清空 SQL（仅通知监听器）
      */
     public void clearSql() {
-        sqlList.clear();
         notifyListenersClear();
     }
 

@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.editor.EditorSettings;
@@ -41,24 +42,8 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
     private final Project project;
     private final Editor editor;
     private final JBScrollPane scrollPane;
-    private final StringBuilder contentBuilder = new StringBuilder();
     private final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private final List<RangeHighlighter> highlighters = new ArrayList<>();
-    // 记录每个 SQL 块的信息
-    private final List<SqlBlockInfo> sqlBlocks = new ArrayList<>();
-        
-    // SQL 块信息
-    private static class SqlBlockInfo {
-        int startOffset;
-        int endOffset;
-        SqlLogParser.SqlType sqlType;
-            
-        SqlBlockInfo(int start, int end, SqlLogParser.SqlType type) {
-            this.startOffset = start;
-            this.endOffset = end;
-            this.sqlType = type;
-        }
-    }
 
     public SqlConsolePanel(Project project) {
         super(new BorderLayout());
@@ -102,9 +87,6 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
 
         // 注册监听器
         SqlConsoleService.getInstance(project).addListener(this);
-
-        // 加载历史 SQL
-        loadHistorySql();
     }
     
     /**
@@ -185,7 +167,7 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
      */
     private void deleteSelectedText() {
         ApplicationManager.getApplication().invokeLater(() -> {
-            ApplicationManager.getApplication().runWriteAction(() -> {
+            WriteCommandAction.runWriteCommandAction(project, () -> {
                 int selectionStart = editor.getSelectionModel().getSelectionStart();
                 int selectionEnd = editor.getSelectionModel().getSelectionEnd();
                 if (selectionStart < selectionEnd) {
@@ -240,40 +222,42 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
     }
 
     /**
-     * 加载历史 SQL
+     * 追加 SQL 到编辑器末尾
      */
-    private void loadHistorySql() {
-        for (SqlLogParser.ParsedSql sql : SqlConsoleService.getInstance(project).getAllSql()) {
-            appendSql(sql);
-        }
-        updateEditor();
-    }
-
-    /**
-     * 追加 SQL
-     */
-    private void appendSql(SqlLogParser.ParsedSql parsedSql) {
-        String timestamp = timeFormat.format(new Date());
-        String operation = parsedSql.getOperation();
-        String border = "═".repeat(59);
-        
-        int startOffset = contentBuilder.length();
-
-        // 顶部边框
-        contentBuilder.append(border).append("\n");
-        // 标题行
-        contentBuilder.append(operation).append(" [").append(timestamp).append("]\n");
-        // 分隔线
-        contentBuilder.append("─".repeat(59)).append("\n");
-        // SQL 内容
-        contentBuilder.append(parsedSql.getFormattedSql()).append("\n");
-        // 底部边框
-        contentBuilder.append(border).append("\n\n");
-        
-        int endOffset = contentBuilder.length();
-        
-        // 记录 SQL 块信息，用于后续添加颜色
-        sqlBlocks.add(new SqlBlockInfo(startOffset, endOffset, parsedSql.getSqlType()));
+    private void appendSqlToEditor(SqlLogParser.ParsedSql parsedSql) {
+        ApplicationManager.getApplication().invokeLater(() -> {
+            WriteCommandAction.runWriteCommandAction(project, () -> {
+                String timestamp = timeFormat.format(new Date());
+                String operation = parsedSql.getOperation();
+                String border = "═".repeat(59);  // 统一使用双线框
+                
+                int startOffset = editor.getDocument().getTextLength();
+                
+                // 构建 SQL 块内容
+                StringBuilder sqlBlock = new StringBuilder();
+                // 顶部边框
+                sqlBlock.append(border).append("\n");
+                // 标题行
+                sqlBlock.append(operation).append(" [").append(timestamp).append("]\n");
+                // 分隔线
+                sqlBlock.append("─".repeat(59)).append("\n");
+                // SQL 内容
+                sqlBlock.append(parsedSql.getFormattedSql()).append("\n");
+                // 底部边框
+                sqlBlock.append(border).append("\n\n");
+                
+                // 追加到文档末尾
+                editor.getDocument().insertString(startOffset, sqlBlock.toString());
+                
+                int endOffset = editor.getDocument().getTextLength();
+                
+                // 添加颜色高亮
+                addColorHighlightForRange(startOffset, endOffset, parsedSql.getSqlType());
+                
+                // 滚动到底部
+                scrollToBottom();
+            });
+        });
     }
 
     /**
@@ -295,51 +279,24 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
     }
 
     /**
-     * 更新编辑器内容
+     * 为指定范围添加颜色高亮
      */
-    private void updateEditor() {
-        ApplicationManager.getApplication().invokeLater(() -> {
-            ApplicationManager.getApplication().runWriteAction(() -> {
-                // 更新文本
-                editor.getDocument().setText(contentBuilder.toString());
-                
-                // 清除旧的高亮
-                for (RangeHighlighter highlighter : highlighters) {
-                    editor.getMarkupModel().removeHighlighter(highlighter);
-                }
-                highlighters.clear();
-                
-                // 添加新的颜色高亮
-                for (SqlBlockInfo blockInfo : sqlBlocks) {
-                    addColorHighlight(blockInfo);
-                }
-                
-                // 滚动到底部
-                editor.getCaretModel().moveToOffset(editor.getDocument().getTextLength());
-                editor.getScrollingModel().scrollToCaret(com.intellij.openapi.editor.ScrollType.MAKE_VISIBLE);
-            });
-        });
-    }
-    
-    /**
-     * 为 SQL 块添加颜色高亮
-     */
-    private void addColorHighlight(SqlBlockInfo blockInfo) {
-        if (blockInfo.startOffset >= editor.getDocument().getTextLength()) {
+    private void addColorHighlightForRange(int startOffset, int endOffset, SqlLogParser.SqlType sqlType) {
+        if (startOffset >= editor.getDocument().getTextLength()) {
             return;
         }
         
-        Color color = getColorByType(blockInfo.sqlType);
+        Color color = getColorByType(sqlType);
         TextAttributes attributes = new TextAttributes();
         attributes.setForegroundColor(color);
         
         // 只给边框和标题添加颜色
         String text = editor.getDocument().getText();
-        int currentPos = blockInfo.startOffset;
+        int currentPos = startOffset;
         
         // 找到每一行的边框和标题
-        String[] lines = text.substring(blockInfo.startOffset, 
-                Math.min(blockInfo.endOffset, editor.getDocument().getTextLength())).split("\n");
+        String[] lines = text.substring(startOffset, 
+                Math.min(endOffset, editor.getDocument().getTextLength())).split("\n");
         
         for (int i = 0; i < lines.length && currentPos < editor.getDocument().getTextLength(); i++) {
             String line = lines[i];
@@ -348,13 +305,15 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
             
             // 第一行（顶部边框）、第二行（标题）、第三行（分隔线）和最后一行（底部边框）需要颜色
             if (i == 0 || i == 1 || i == 2 || line.startsWith("═")) {
-                RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(
-                        lineStart, lineEnd,
-                        HighlighterLayer.SYNTAX,
-                        attributes,
-                        HighlighterTargetArea.EXACT_RANGE
-                );
-                highlighters.add(highlighter);
+                if (lineStart < lineEnd) {
+                    RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(
+                            lineStart, lineEnd,
+                            HighlighterLayer.SYNTAX,
+                            attributes,
+                            HighlighterTargetArea.EXACT_RANGE
+                    );
+                    highlighters.add(highlighter);
+                }
             }
             
             currentPos = lineEnd + 1; // +1 为换行符
@@ -365,15 +324,20 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
      * 清空控制台
      */
     public void clear() {
-        contentBuilder.setLength(0);
-        // 清空 SQL 块信息
-        sqlBlocks.clear();
-        // 清除所有高亮
-        for (RangeHighlighter highlighter : highlighters) {
-            editor.getMarkupModel().removeHighlighter(highlighter);
-        }
-        highlighters.clear();
-        updateEditor();
+        ApplicationManager.getApplication().invokeLater(() -> {
+            WriteCommandAction.runWriteCommandAction(project, () -> {
+                // 清空编辑器内容
+                editor.getDocument().setText("");
+                
+                // 清除所有高亮
+                for (RangeHighlighter highlighter : highlighters) {
+                    editor.getMarkupModel().removeHighlighter(highlighter);
+                }
+                highlighters.clear();
+            });
+        });
+        
+        // 清空 Service 中的记录
         SqlConsoleService.getInstance(project).clearSql();
     }
     
@@ -388,7 +352,7 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
             verticalScrollBar.setValue(verticalScrollBar.getMaximum());
             
             // 同时移动光标到末尾
-            ApplicationManager.getApplication().runWriteAction(() -> {
+            WriteCommandAction.runWriteCommandAction(project, () -> {
                 int textLength = editor.getDocument().getTextLength();
                 if (textLength > 0) {
                     editor.getCaretModel().moveToOffset(textLength);
@@ -399,14 +363,13 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
 
     @Override
     public void onSqlAdded(SqlLogParser.ParsedSql parsedSql) {
-        appendSql(parsedSql);
-        updateEditor();
+        // 直接追加到编辑器，不覆盖用户的编辑
+        appendSqlToEditor(parsedSql);
     }
 
     @Override
     public void onSqlCleared() {
-        contentBuilder.setLength(0);
-        updateEditor();
+        // Service 被清空时，不做任何操作（保留用户编辑的内容）
     }
 
     @Override
