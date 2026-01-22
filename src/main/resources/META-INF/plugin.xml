@@ -1,0 +1,65 @@
+<idea-plugin>
+    <id>com.mybatis.sql.beautifier</id>
+    <name>MyBatis SQL Beautifier</name>
+    <vendor email="wu666888long@gmail.com" url="https://github.com/example/mybatis-sql-logger">wu long</vendor>
+
+    <description><![CDATA[
+       <b>MyBatis SQL Logger - Enhanced SQL Logging Tool for MyBatis/MyBatis-Plus</b>
+
+        <img src="/images/img.png" width="128" height="128" align="right">
+
+        <h2>MyBatis / MyBatis-Plus SQL 日志增强工具</h2>
+        <p>自动监听控制台 MyBatis SQL 日志，进行格式化和参数替换，提供美观的 SQL 展示。</p>
+        
+        <h3>功能特性：</h3>
+        <ul>
+            <li>✅ 自动识别 MyBatis / MyBatis-Plus 日志</li>
+            <li>✅ 自动替换 SQL 占位符为真实参数</li>
+            <li>✅ SQL 结构化格式化（SELECT/INSERT/UPDATE/DELETE）</li>
+            <li>✅ 专属 SQL Console ToolWindow 展示</li>
+            <li>✅ SQL 语法高亮显示</li>
+            <li>✅ 一键复制完整 SQL</li>
+            <li>✅ 支持多行 SQL 和复杂参数</li>
+        </ul>
+        
+        <h3>使用方法：</h3>
+        <ol>
+            <li>运行/调试 MyBatis 项目</li>
+            <li>打开 View → Tool Windows → SQL Console</li>
+            <li>查看格式化后的 SQL 语句</li>
+        </ol>
+        <br/>
+        <b>注意：</b>确保项目开启了 MyBatis 日志输出（debug 级别）<br/>
+    ]]></description>
+
+    <change-notes><![CDATA[
+        <h3>Version 1.0.0</h3>
+        <ul>
+            <li>初始版本发布</li>
+            <li>支持 MyBatis / MyBatis-Plus SQL 日志解析</li>
+            <li>SQL 格式化和参数替换</li>
+            <li>自定义 ToolWindow 展示</li>
+        </ul>
+    ]]></change-notes>
+
+    <!-- 插件依赖 -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <!-- 扩展点 -->
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- 注册 ToolWindow -->
+        <toolWindow 
+            id="SQL Console" 
+            anchor="bottom" 
+            icon="/icons/sql-console.svg"
+            factoryClass="com.mybatis.sql.logger.ui.SqlConsoleToolWindowFactory"/>
+    </extensions>
+
+    <!-- 消息总线监听器 -->
+    <projectListeners>
+        <listener 
+            class="com.mybatis.sql.logger.listener.SqlLogExecutionListener"
+            topic="com.intellij.execution.ExecutionListener"/>
+    </projectListeners>
+</idea-plugin>
