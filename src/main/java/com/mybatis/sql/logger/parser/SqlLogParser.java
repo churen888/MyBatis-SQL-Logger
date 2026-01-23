@@ -10,15 +10,15 @@ import java.util.regex.Pattern;
  */
 public class SqlLogParser {
 
-    // MyBatis Preparing 日志正则
+    // MyBatis Preparing 日志正则 - 更精确的支持多种格式
     private static final Pattern PREPARING_PATTERN = Pattern.compile(
-            "==>\\s+Preparing:\\s+(.+)",
+            "(?:[^:]*:\\s*)?==>\\s*Preparing:\\s*(.+)",
             Pattern.CASE_INSENSITIVE
     );
 
-    // MyBatis Parameters 日志正则
+    // MyBatis Parameters 日志正则 - 更精确的支持多种格式
     private static final Pattern PARAMETERS_PATTERN = Pattern.compile(
-            "==>\\s+Parameters:\\s+(.+)",
+            "(?:[^:]*:\\s*)?==>\\s*Parameters:\\s*(.+)",
             Pattern.CASE_INSENSITIVE
     );
 
