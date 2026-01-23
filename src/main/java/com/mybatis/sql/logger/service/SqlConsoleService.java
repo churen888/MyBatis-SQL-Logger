@@ -16,7 +16,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public final class SqlConsoleService {
 
     private final List<SqlConsoleListener> listeners = new CopyOnWriteArrayList<>();
-    private volatile boolean isListening = true; // 默认开启监听
+    // 默认开启监听
+    private volatile boolean isListening = true;
 
     public static SqlConsoleService getInstance(Project project) {
         return project.getService(SqlConsoleService.class);
