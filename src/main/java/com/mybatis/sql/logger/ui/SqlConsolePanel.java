@@ -1,5 +1,8 @@
 package com.mybatis.sql.logger.ui;
 
+import com.intellij.find.EditorSearchSession;
+import com.intellij.find.FindManager;
+import com.intellij.find.FindModel;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionToolbar;
@@ -44,6 +47,7 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
     private final JBScrollPane scrollPane;
     private final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private final List<RangeHighlighter> highlighters = new ArrayList<>();
+    private EditorSearchSession searchSession;
 
     public SqlConsolePanel(Project project) {
         super(new BorderLayout());
@@ -251,6 +255,20 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
         // 添加滚动到底部 Action
         ScrollToBottomAction scrollAction = new ScrollToBottomAction(this);
         actionGroup.add(scrollAction);
+        
+        actionGroup.addSeparator();
+        
+        // 添加搜索按钮
+        actionGroup.add(new com.intellij.openapi.actionSystem.AnAction(
+                "搜索SQL", 
+                "在SQL日志中搜索内容", 
+                com.intellij.icons.AllIcons.Actions.Find
+        ) {
+            @Override
+            public void actionPerformed(com.intellij.openapi.actionSystem.AnActionEvent e) {
+                showSearchPanel();
+            }
+        });
 
         // 创建工具栏（水平布局）
         ActionToolbar toolbar = ActionManager.getInstance()
@@ -419,8 +437,39 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
         // Service 被清空时，不做任何操作（保留用户编辑的内容）
     }
 
+    /**
+     * 显示搜索面板
+     */
+    private void showSearchPanel() {
+        if (searchSession != null && searchSession.getComponent().isShowing()) {
+            // 如果搜索面板已经打开，聚焦搜索框
+            searchSession.getComponent().requestFocusInWindow();
+            return;
+        }
+        
+        // 创建搜索会话
+        FindModel findModel = new FindModel();
+        findModel.setSearchContext(FindModel.SearchContext.ANY);
+        findModel.setWholeWordsOnly(false);
+        findModel.setCaseSensitive(false);
+        findModel.setRegularExpressions(false);
+        
+        searchSession = EditorSearchSession.start(editor, findModel, project);
+    }
+    
+    /**
+     * 关闭搜索面板
+     */
+    private void closeSearchPanel() {
+        if (searchSession != null) {
+            searchSession.close();
+            searchSession = null;
+        }
+    }
+
     @Override
     public void dispose() {
+        closeSearchPanel();
         SqlConsoleService.getInstance(project).removeListener(this);
         EditorFactory.getInstance().releaseEditor(editor);
     }

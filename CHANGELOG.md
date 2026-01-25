@@ -1,6 +1,18 @@
 # 版本变更日志 (CHANGELOG)
 # [1.0.2] - 2026-01-25
 
+### ✨ 新增功能
+- **SQL控制台搜索功能**: 添加编辑器内置搜索功能
+  - 工具栏新增搜索按钮（🔍），点击打开搜索面板
+  - 支持标准快捷键：`Ctrl+F` / `Cmd+F` 打开搜索
+  - 搜索功能包括：
+    - 实时搜索高亮显示所有匹配项
+    - 上一个/下一个匹配项快速跳转
+    - 匹配计数显示（如：1/5）
+    - 大小写敏感/不敏感切换
+    - 支持正则表达式搜索
+  - 使用 IntelliJ Platform 标准 `EditorSearchSession` 组件，与 IDEA 编辑器搜索体验一致
+
 ### 🐛 问题修复
 - **修复 Spring Boot 配置下 SQL 日志格式化失败问题**
   - 修复插件在 Spring Boot 运行配置下，SQL 末尾拼接日志后缀的问题
@@ -21,6 +33,9 @@
 - 新增 `startsWithSqlKeyword()` 方法 - 判断行是否以 SQL 关键字开头
 - 优化正则表达式边界检测：`(?:\\s+(?:DEBUG|INFO|WARN|ERROR|TRACE)|$)`
 - 移除了复杂的 `isSqlContent()` 误判逻辑，采用更精确的关键字匹配
+- 扩展 `SqlConsolePanel.java` - 集成 `EditorSearchSession` 搜索功能
+- 新增 `showSearchPanel()` 方法 - 显示搜索面板
+- 新增 `closeSearchPanel()` 方法 - 关闭搜索面板并清理资源
 
 ---
 
