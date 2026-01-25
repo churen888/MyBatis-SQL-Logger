@@ -2,6 +2,7 @@ package com.mybatis.sql.logger.listener;
 
 import com.intellij.execution.process.ProcessEvent;
 import com.intellij.execution.process.ProcessListener;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.mybatis.sql.logger.parser.SqlLogParser;
@@ -14,6 +15,8 @@ import org.jetbrains.annotations.NotNull;
  */
 public class SqlLogProcessListener implements ProcessListener {
 
+    private static final Logger LOG = Logger.getInstance(SqlLogProcessListener.class);
+    
     private final SqlLogParser parser = new SqlLogParser();
     private final Project project;
 
@@ -37,6 +40,12 @@ public class SqlLogProcessListener implements ProcessListener {
         
         if (text == null || text.trim().isEmpty()) {
             return;
+        }
+        
+        // 调试：输出接收到的原始文本
+        if (text.contains("Preparing") || text.contains("Parameters")) {
+            LOG.debug("[ProcessListener] 接收到文本: " + text);
+            LOG.debug("[ProcessListener] 文本长度: " + text.length());
         }
 
         // 解析日志行

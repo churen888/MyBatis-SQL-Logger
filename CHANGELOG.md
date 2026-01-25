@@ -1,4 +1,28 @@
 # 版本变更日志 (CHANGELOG)
+# [1.0.2] - 2026-01-25
+
+### 🐛 问题修复
+- **修复 Spring Boot 配置下 SQL 日志格式化失败问题**
+  - 修复插件在 Spring Boot 运行配置下，SQL 末尾拼接日志后缀的问题
+  - 问题原因：ProcessListener 按小片段接收日志，导致日志前缀（DEBUG、线程信息、类名等）被逐个单词发送并误收集为 SQL 内容
+  - 解决方案：实现智能多行 SQL 收集策略，只收集以 SQL 关键字开头的行，拒绝日志碎片
+  - 新增 `startsWithSqlKeyword()` 方法，定义 SQL 关键字白名单过滤规则
+  - 优化 `PREPARING_PATTERN` 和 `PARAMETERS_PATTERN` 正则表达式，使用非贪婪匹配和边界检测
+  - 确保 SQL 在 Application 和 Spring Boot 两种运行配置下都能正确格式化
+
+### 🔧 优化改进
+- 优化日志输出级别，将调试日志从 INFO 降级为 DEBUG
+  - 正常使用时不会产生过多日志输出
+  - 需要排查问题时可通过 Help > Diagnostic Tools > Debug Log Settings 启用
+- 精简日志输出内容，合并匹配位置信息
+
+### 📝 技术实现
+- 改进 `SqlLogParser.parseLine()` 方法的多行收集逻辑
+- 新增 `startsWithSqlKeyword()` 方法 - 判断行是否以 SQL 关键字开头
+- 优化正则表达式边界检测：`(?:\\s+(?:DEBUG|INFO|WARN|ERROR|TRACE)|$)`
+- 移除了复杂的 `isSqlContent()` 误判逻辑，采用更精确的关键字匹配
+
+---
 
 # [1.0.1] - 2026-01-22
 
