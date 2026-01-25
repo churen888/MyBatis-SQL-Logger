@@ -6,8 +6,6 @@
     <description><![CDATA[
        <b>MyBatis SQL Logger - Enhanced SQL Logging Tool for MyBatis/MyBatis-Plus</b>
 
-        <img src="images/img.png" width="128" height="128" align="right">
-
         <h2>MyBatis / MyBatis-Plus SQL 日志增强工具</h2>
         <p>自动监听控制台 MyBatis SQL 日志，进行格式化和参数替换，提供美观的 SQL 展示。</p>
         
