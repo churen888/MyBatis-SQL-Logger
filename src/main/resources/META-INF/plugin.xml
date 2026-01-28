@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.mybatis.sql.beautifier</id>
     <name>MyBatis SQL Beautifier</name>
-    <vendor email="wu666888long@gmail.com" url="https://github.com/example/mybatis-sql-logger">wu long</vendor>
+    <vendor email="wu666888long@gmail.com" url="https://github.com/churen888/MyBatis-SQL-Logger">wu long</vendor>
 
     <description><![CDATA[
        <b>MyBatis SQL Logger - Enhanced SQL Logging Tool for MyBatis/MyBatis-Plus</b>
