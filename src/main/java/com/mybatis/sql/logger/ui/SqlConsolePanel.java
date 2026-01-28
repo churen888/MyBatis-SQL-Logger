@@ -1,8 +1,6 @@
 package com.mybatis.sql.logger.ui;
 
 import com.intellij.find.EditorSearchSession;
-import com.intellij.find.FindManager;
-import com.intellij.find.FindModel;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionToolbar;
@@ -20,7 +18,6 @@ import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.ui.components.JBScrollPane;
 import com.mybatis.sql.logger.action.ClearConsoleAction;
 import com.mybatis.sql.logger.action.CopySqlAction;
 import com.mybatis.sql.logger.action.ScrollToBottomAction;
@@ -44,7 +41,6 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
 
     private final Project project;
     private final Editor editor;
-    private final JBScrollPane scrollPane;
     private final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private final List<RangeHighlighter> highlighters = new ArrayList<>();
     private EditorSearchSession searchSession;
@@ -79,12 +75,12 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
         // 创建工具栏
         JPanel toolbarPanel = createToolbar();
 
-        // 创建滚动面板
-        scrollPane = new JBScrollPane(editor.getComponent());
+        // 直接添加编辑器组件，不使用 JScrollPane 包装
+        // 这样 EditorEx.setHeaderComponent 才能正确固定搜索框
         
         // 布局
         add(toolbarPanel, BorderLayout.NORTH);
-        add(scrollPane, BorderLayout.CENTER);
+        add(editor.getComponent(), BorderLayout.CENTER);
         
         // 添加右键菜单
         addContextMenu();
@@ -102,20 +98,20 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
     private void showWelcomeMessage() {
         // 构建欢迎信息文本
         StringBuilder welcome = new StringBuilder();
-        welcome.append("═".repeat(80)).append("\n");
-        welcome.append("🎉 欢迎使用 MyBatis SQL Beautifier 插件 🎉\n");
-        welcome.append("─".repeat(80)).append("\n");
-        welcome.append("💡 功能特性:\n");
-        welcome.append("   • 自动捕获并格式化 MyBatis/MyBatis-Plus SQL 日志\n");
-        welcome.append("   • 实时替换 SQL 参数，展示完整的可执行 SQL\n");
-        welcome.append("   • 支持 SQL 语法高亮和颜色区分（查询/插入/更新/删除）\n");
-        welcome.append("   • 可编辑模式，支持手动修改和复制 SQL\n");
-        welcome.append("\n");
-        welcome.append("👨\u200d💻 作者：程序员 curen\n");
-        welcome.append("📧 反馈邮箱：1139632166@qq.com\n");
-        welcome.append("\n");
-        welcome.append("🔔 提示：请确保项目开启了 MyBatis 日志输出（DEBUG 级别）\n");
-        welcome.append("═".repeat(80)).append("\n\n");
+//        welcome.append("═".repeat(80)).append("\n");
+//        welcome.append("🎉 欢迎使用 MyBatis SQL Beautifier 插件 🎉\n");
+//        welcome.append("─".repeat(80)).append("\n");
+//        welcome.append("💡 功能特性:\n");
+//        welcome.append("   • 自动捕获并格式化 MyBatis/MyBatis-Plus SQL 日志\n");
+//        welcome.append("   • 实时替换 SQL 参数，展示完整的可执行 SQL\n");
+//        welcome.append("   • 支持 SQL 语法高亮和颜色区分（查询/插入/更新/删除）\n");
+//        welcome.append("   • 可编辑模式，支持手动修改和复制 SQL\n");
+//        welcome.append("\n");
+//        welcome.append("👨\u200d💻 作者：程序员 curen\n");
+//        welcome.append("📧 反馈邮箱：1139632166@qq.com\n");
+//        welcome.append("\n");
+//        welcome.append("🔔 提示：请确保项目开启了 MyBatis 日志输出（DEBUG 级别）\n");
+//        welcome.append("═".repeat(80)).append("\n\n");
         
         String welcomeText = welcome.toString();
         
@@ -411,16 +407,13 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
      */
     public void scrollToBottom() {
         ApplicationManager.getApplication().invokeLater(() -> {
-            // 获取垂直滚动条
-            javax.swing.JScrollBar verticalScrollBar = scrollPane.getVerticalScrollBar();
-            // 滚动到最大值
-            verticalScrollBar.setValue(verticalScrollBar.getMaximum());
-            
-            // 同时移动光标到末尾
             WriteCommandAction.runWriteCommandAction(project, () -> {
                 int textLength = editor.getDocument().getTextLength();
                 if (textLength > 0) {
+                    // 移动光标到末尾
                     editor.getCaretModel().moveToOffset(textLength);
+                    // 滚动编辑器使光标可见
+                    editor.getScrollingModel().scrollToCaret(com.intellij.openapi.editor.ScrollType.MAKE_VISIBLE);
                 }
             });
         });
@@ -439,22 +432,29 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
 
     /**
      * 显示搜索面板
+     * 使用 EditorEx.setHeaderComponent 将搜索框固定在编辑器顶部
      */
     private void showSearchPanel() {
-        if (searchSession != null && searchSession.getComponent().isShowing()) {
+        if (searchSession != null) {
             // 如果搜索面板已经打开，聚焦搜索框
             searchSession.getComponent().requestFocusInWindow();
             return;
         }
         
-        // 创建搜索会话
-        FindModel findModel = new FindModel();
-        findModel.setSearchContext(FindModel.SearchContext.ANY);
-        findModel.setWholeWordsOnly(false);
-        findModel.setCaseSensitive(false);
-        findModel.setRegularExpressions(false);
+        // 创建搜索会话 - 注意：不要创建新的 FindModel，让 EditorSearchSession 使用默认配置
+        searchSession = EditorSearchSession.start(editor, project);
         
-        searchSession = EditorSearchSession.start(editor, findModel, project);
+        if (searchSession != null && editor instanceof EditorEx) {
+            // 关键修复：将搜索组件设置为 Header，这样它会固定在顶部不随滚动
+            EditorEx editorEx = (EditorEx) editor;
+            JComponent searchComponent = searchSession.getComponent();
+            editorEx.setHeaderComponent(searchComponent);
+            
+            // 聚焦到搜索输入框
+            ApplicationManager.getApplication().invokeLater(() -> {
+                searchComponent.requestFocusInWindow();
+            });
+        }
     }
     
     /**
@@ -462,6 +462,11 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
      */
     private void closeSearchPanel() {
         if (searchSession != null) {
+            // 移除 Header 组件
+            if (editor instanceof EditorEx) {
+                ((EditorEx) editor).setHeaderComponent(null);
+            }
+            
             searchSession.close();
             searchSession = null;
         }

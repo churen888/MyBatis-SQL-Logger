@@ -114,6 +114,7 @@ public class SqlLogParser {
 
     /**
      * 解析参数字符串
+     * 兼容处理参数值中包含换行符的情况
      */
     private List<Object> parseParameters(String parametersStr) {
         List<Object> parameters = new ArrayList<>();
@@ -121,6 +122,11 @@ public class SqlLogParser {
         if (parametersStr == null || parametersStr.trim().isEmpty()) {
             return parameters;
         }
+        
+        // 预处理：将所有换行符、回车符、制表符替换为空格，并合并多余空格
+        parametersStr = parametersStr.replaceAll("[\\r\\n\\t]+", " ")
+                                     .replaceAll("\\s+", " ")
+                                     .trim();
 
         // 分割参数（处理逗号分隔）
         String[] parts = parametersStr.split(",(?![^()]*\\))");

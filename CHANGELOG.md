@@ -1,7 +1,17 @@
 # 版本变更日志 (CHANGELOG)
-# [1.0.2] - 2026-01-25
+
+# [1.0.2] - 2026-01-28
 
 ### ✨ 新增功能
+- **IDEA标准搜索功能**: 搜索框完全符合IDEA标准体验
+  - 搜索框固定在编辑器顶部，使用setHeaderComponent()实现
+  - 滚动内容时搜索框保持不动
+  - 上下按钮跳转功能，使用默认EditorSearchSession配置
+  - 点击上下按钮自动跳转到匹配项，自动滚动到对应位置并高亮
+  - 实时搜索高亮，输入搜索词实时高亮所有匹配
+  - 显示匹配计数（如 2/2）
+  - 支持Enter/Shift+Enter快捷键，支持大小写切换
+  - 支持正则表达式，支持全词匹配
 - **SQL控制台搜索功能**: 添加编辑器内置搜索功能
   - 工具栏新增搜索按钮（🔍），点击打开搜索面板
   - 支持标准快捷键：`Ctrl+F` / `Cmd+F` 打开搜索
@@ -14,6 +24,10 @@
   - 使用 IntelliJ Platform 标准 `EditorSearchSession` 组件，与 IDEA 编辑器搜索体验一致
 
 ### 🐛 问题修复
+- **修复参数值换行符解析失败**: 处理参数值中包含换行符导致解析失败的问题
+  - 预处理参数字符串，将换行符、回车符、制表符替换为空格
+  - 合并多余空格，确保参数解析的准确性
+  - 优化参数分割逻辑，处理复杂参数格式
 - **修复 Spring Boot 配置下 SQL 日志格式化失败问题**
   - 修复插件在 Spring Boot 运行配置下，SQL 末尾拼接日志后缀的问题
   - 问题原因：ProcessListener 按小片段接收日志，导致日志前缀（DEBUG、线程信息、类名等）被逐个单词发送并误收集为 SQL 内容
@@ -23,12 +37,20 @@
   - 确保 SQL 在 Application 和 Spring Boot 两种运行配置下都能正确格式化
 
 ### 🔧 优化改进
+- 优化搜索面板的显示和关闭逻辑，确保资源正确释放
+- 改进参数解析的健壮性，提升插件稳定性
+- 优化EditorSearchSession的使用方式，与IDEA标准编辑器行为一致
 - 优化日志输出级别，将调试日志从 INFO 降级为 DEBUG
   - 正常使用时不会产生过多日志输出
   - 需要排查问题时可通过 Help > Diagnostic Tools > Debug Log Settings 启用
 - 精简日志输出内容，合并匹配位置信息
 
 ### 📝 技术实现
+- 修改 `SqlConsolePanel.java` - 重构搜索面板显示逻辑
+- 新增 `showSearchPanel()` 方法 - 使用EditorEx.setHeaderComponent固定搜索框
+- 新增 `closeSearchPanel()` 方法 - 正确清理搜索面板资源
+- 优化 `SqlLogParser.parseParameters()` 方法 - 处理换行符等特殊字符
+- 预处理参数字符串，使用正则表达式替换特殊字符
 - 改进 `SqlLogParser.parseLine()` 方法的多行收集逻辑
 - 新增 `startsWithSqlKeyword()` 方法 - 判断行是否以 SQL 关键字开头
 - 优化正则表达式边界检测：`(?:\\s+(?:DEBUG|INFO|WARN|ERROR|TRACE)|$)`
@@ -55,7 +77,7 @@
 - **SQL控制台内容编辑功能**: 支持在SQL Console中直接编辑、删除和添加内容
   - 将编辑器从只读模式改为可编辑模式
   - 支持所有标准文本编辑操作（输入、删除、复制、粘贴等）
-  - 右键菜单新增“删除选中内容”功能
+  - 右键菜单新增"删除选中内容"功能
   - 可使用快捷键进行编辑操作（Delete、Backspace、Ctrl+C/V/X等）
   - 支持在任意位置点击光标并输入新内容
 
