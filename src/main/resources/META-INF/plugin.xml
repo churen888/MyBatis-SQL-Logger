@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.mybatis.sql.beautifier</id>
     <name>MyBatis SQL Beautifier</name>
-    <vendor email="wu666888long@gmail.com" url="https://github.com/churen888/MyBatis-SQL-Logger">wu long</vendor>
+    <vendor email="wu666888long@gmail.com" url="https://github.com/churen888/MyBatis-SQL-Logger">程序员curen</vendor>
 
     <description><![CDATA[
        <b>MyBatis SQL Logger - Enhanced SQL Logging Tool for MyBatis/MyBatis-Plus</b>
@@ -22,7 +22,8 @@
             <li>🆕 SQL 监听开关，灵活控制日志捕获</li>
             <li>🆕 快速滚动到底部功能</li>
             <li>🆕 启动欢迎信息，友好的用户引导</li>
-            <li>🆕 IDEA标准搜索功能，支持实时高亮和跳转</li>
+            <li>🆕 右键格式化功能，可对选中 SQL 进行美化格式化</li>
+            <li>🆕 全面优化 SQL 格式化算法，实现更美观的排版效果</li>
         </ul>
         
         <h3>使用方法：</h3>
@@ -40,6 +41,17 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h3>Version 1.0.3 (2026-01-28)</h3>
+        <ul>
+            <li>🆕 右键格式化功能：选中 SQL 后右键可直接格式化</li>
+            <li>🆕 全面优化 SQL 格式化规则，实现更美观的排版效果</li>
+            <li>✅ 修复搜索框滚动问题，现在固定在编辑器顶部</li>
+            <li>✅ 修复搜索上下跳转不生效的问题</li>
+            <li>✅ 修复参数值包含换行符导致解析失败</li>
+            <li>🔧 优化滚动到底部功能，使用更可靠的 API</li>
+            <li>🔧 改进搜索面板交互体验，自动聚焦搜索框</li>
+        </ul>
+        
         <h3>Version 1.0.2 (2026-01-28)</h3>
         <ul>
             <li>🆕 新增 IDEA 标准搜索功能，搜索框固定在编辑器顶部</li>

@@ -1,4 +1,72 @@
-# 版本变更日志 (CHANGELOG)
+ 版本变更日志 (CHANGELOG)
+
+# [1.0.3] - 2026-01-28
+
+### ✨ 新增功能
+- **SQL 格式化优化**: 全面优化 SQL 格式化规则，实现更美观的排版
+  - SELECT 字段垂直对齐：第一个字段与 SELECT/DISTINCT 同行，后续字段统一 16 个空格缩进
+  - JOIN 子句美化：INNER JOIN、LEFT JOIN 等与 FROM 对齐（9 个空格缩进），JOIN 和 ON 条件在同一行
+  - WHERE 条件优化：第一个条件紧跟 WHERE，AND/OR 关键字左对齐缩进（2 个空格）
+  - 支持 DISTINCT、ALL 等修饰符的正确识别和格式化
+  - 完整支持 GROUP BY、HAVING、ORDER BY、LIMIT 等子句
+  - 多个 JOIN 垂直对齐，提升复杂查询的可读性
+
+- **右键格式化功能**: 在 SQL Console 中选中 SQL 可右键格式化
+  - 新增"格式化选中 SQL"右键菜单项（⚡ 图标）
+  - 智能检测 SQL 类型（SELECT/INSERT/UPDATE/DELETE）
+  - 格式化后原地替换，自动选中并滚动到格式化后的位置
+  - 方便快速测试和调整 SQL 格式化效果
+  - 格式化失败时静默处理，不打扰用户
+
+### 🐛 问题修复
+- **修复搜索框滚动问题**: 搜索框现在固定在编辑器顶部
+  - 使用 `EditorEx.setHeaderComponent()` 正确固定搜索框
+  - 滚动内容时搜索框保持不动，符合 IDEA 标准体验
+  - 正确清理 Header 组件资源，避免内存泄漏
+
+- **修复搜索上下跳转不生效**: 搜索按钮现在能正确跳转
+  - 移除手动 FindModel 配置，使用 EditorSearchSession 默认配置
+  - 点击上下按钮自动跳转并滚动到匹配项位置
+  - 自动高亮当前匹配项，显示匹配计数
+
+- **修复参数值包含换行符导致解析失败**
+  - 在 `parseParameters()` 方法中预处理参数字符串
+  - 将换行符(\r\n)、制表符(\t) 替换为空格并合并多余空格
+  - 确保参数解析的稳定性和准确性
+
+### 🔧 优化改进
+- **优化滚动到底部功能**
+  - 使用 `CaretModel.moveToOffset()` 移动光标到末尾
+  - 使用 `ScrollingModel.scrollToCaret()` 确保光标可见
+  - 在 WriteCommandAction 中执行，确保线程安全
+
+- **改进搜索面板交互体验**
+  - 重复打开搜索面板时自动聚焦搜索框
+  - 搜索框自动获得焦点，可直接输入
+  - 搜索组件请求焦点在 EDT 线程中异步执行
+
+- **优化 SQL 格式化算法**
+  - 重构 `formatSelectStatement()` 方法，更精确的子句分割
+  - 新增 `formatJoinClauses()` 方法，专门处理 JOIN 子句
+  - 新增 `formatWhereAndOtherClauses()` 方法，统一处理 WHERE 及其他子句
+  - 新增 `formatOrderGroupBy()` 方法，处理 ORDER BY、GROUP BY、HAVING、LIMIT
+  - 新增 `findNextKeywordIndex()` 工具方法，精确定位关键字位置
+
+### 📝 技术实现
+- 重构 `SqlFormatter.java` - 完全重写格式化逻辑
+  - 移除通用关键字替换，改为针对性的子句处理
+  - 实现递归式子句解析，支持复杂 SQL 结构
+  - 优化字符串处理性能，减少不必要的正则匹配
+- 扩展 `SqlConsolePanel.java` - 添加右键格式化功能
+  - 新增 `formatSelectedSql()` 方法 - 格式化选中的 SQL
+  - 新增 `detectSqlType()` 方法 - 自动检测 SQL 类型
+  - 优化右键菜单布局，添加分隔线和格式化选项
+- 修改 `showSearchPanel()` 方法 - 使用 `EditorEx.setHeaderComponent()` 固定搜索框
+- 修改 `closeSearchPanel()` 方法 - 正确清理 Header 组件并关闭会话
+- 优化 `scrollToBottom()` 方法 - 使用 CaretModel 和 ScrollingModel API
+- 重构 `parseParameters()` 方法 - 增强参数预处理，处理换行符和特殊字符
+
+---
 
 # [1.0.2] - 2026-01-28
 
