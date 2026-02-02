@@ -22,6 +22,7 @@ import com.mybatis.sql.logger.action.ClearConsoleAction;
 import com.mybatis.sql.logger.action.CopySqlAction;
 import com.mybatis.sql.logger.action.ScrollToBottomAction;
 import com.mybatis.sql.logger.action.ToggleListeningAction;
+import com.mybatis.sql.logger.parser.SqlFormatter;
 import com.mybatis.sql.logger.parser.SqlLogParser;
 import com.mybatis.sql.logger.service.SqlConsoleService;
 
@@ -89,7 +90,7 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
         SqlConsoleService.getInstance(project).addListener(this);
         
         // 显示欢迎信息
-        showWelcomeMessage();
+//        showWelcomeMessage();
     }
     
     /**
@@ -98,20 +99,20 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
     private void showWelcomeMessage() {
         // 构建欢迎信息文本
         StringBuilder welcome = new StringBuilder();
-//        welcome.append("═".repeat(80)).append("\n");
-//        welcome.append("🎉 欢迎使用 MyBatis SQL Beautifier 插件 🎉\n");
-//        welcome.append("─".repeat(80)).append("\n");
-//        welcome.append("💡 功能特性:\n");
-//        welcome.append("   • 自动捕获并格式化 MyBatis/MyBatis-Plus SQL 日志\n");
-//        welcome.append("   • 实时替换 SQL 参数，展示完整的可执行 SQL\n");
-//        welcome.append("   • 支持 SQL 语法高亮和颜色区分（查询/插入/更新/删除）\n");
-//        welcome.append("   • 可编辑模式，支持手动修改和复制 SQL\n");
-//        welcome.append("\n");
-//        welcome.append("👨\u200d💻 作者：程序员 curen\n");
-//        welcome.append("📧 反馈邮箱：1139632166@qq.com\n");
-//        welcome.append("\n");
-//        welcome.append("🔔 提示：请确保项目开启了 MyBatis 日志输出（DEBUG 级别）\n");
-//        welcome.append("═".repeat(80)).append("\n\n");
+        welcome.append("═".repeat(80)).append("\n");
+        welcome.append("🎉 欢迎使用 MyBatis SQL Beautifier 插件 🎉\n");
+        welcome.append("─".repeat(80)).append("\n");
+        welcome.append("💡 功能特性:\n");
+        welcome.append("   • 自动捕获并格式化 MyBatis/MyBatis-Plus SQL 日志\n");
+        welcome.append("   • 实时替换 SQL 参数，展示完整的可执行 SQL\n");
+        welcome.append("   • 支持 SQL 语法高亮和颜色区分（查询/插入/更新/删除）\n");
+        welcome.append("   • 可编辑模式，支持手动修改和复制 SQL\n");
+        welcome.append("\n");
+        welcome.append("👨\u200d💻 作者：程序员 curen\n");
+        welcome.append("📧 反馈邮箱：1139632166@qq.com\n");
+        welcome.append("\n");
+        welcome.append("🔔 提示：请确保项目开启了 MyBatis 日志输出（DEBUG 级别）\n");
+        welcome.append("═".repeat(80)).append("\n\n");
         
         String welcomeText = welcome.toString();
         
@@ -183,6 +184,15 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
             deleteSelectedItem.setIcon(com.intellij.icons.AllIcons.Actions.Cancel);
             deleteSelectedItem.addActionListener(event -> deleteSelectedText());
             popupMenu.add(deleteSelectedItem);
+            
+            // 添加分隔线
+            popupMenu.addSeparator();
+            
+            // 添加格式化选中 SQL 菜单项
+            JMenuItem formatSelectedItem = new JMenuItem("格式化选中 SQL");
+            formatSelectedItem.setIcon(com.intellij.icons.AllIcons.Actions.Lightning);
+            formatSelectedItem.addActionListener(event -> formatSelectedSql());
+            popupMenu.add(formatSelectedItem);
         } else {
             // 没有选中内容 - 显示"复制所有 SQL"
             JMenuItem copyAllItem = new JMenuItem("复制所有 SQL");
@@ -224,6 +234,68 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
                 }
             });
         });
+    }
+    
+    /**
+     * 格式化选中的 SQL
+     */
+    private void formatSelectedSql() {
+        String selectedText = editor.getSelectionModel().getSelectedText();
+        if (selectedText == null || selectedText.trim().isEmpty()) {
+            return;
+        }
+        
+        ApplicationManager.getApplication().invokeLater(() -> {
+            WriteCommandAction.runWriteCommandAction(project, () -> {
+                try {
+                    // 自动检测 SQL 类型
+                    String operation = detectSqlType(selectedText);
+                    
+                    // 格式化 SQL
+                    String formattedSql = SqlFormatter.formatSql(selectedText.trim(), operation);
+                    
+                    // 替换选中的文本
+                    int selectionStart = editor.getSelectionModel().getSelectionStart();
+                    int selectionEnd = editor.getSelectionModel().getSelectionEnd();
+                    
+                    if (selectionStart < selectionEnd) {
+                        // 删除原有内容
+                        editor.getDocument().deleteString(selectionStart, selectionEnd);
+                        // 插入格式化后的 SQL
+                        editor.getDocument().insertString(selectionStart, formattedSql);
+                        
+                        // 选中格式化后的文本，方便查看
+                        editor.getSelectionModel().setSelection(selectionStart, selectionStart + formattedSql.length());
+                        
+                        // 滚动到格式化后的位置
+                        editor.getCaretModel().moveToOffset(selectionStart);
+                        editor.getScrollingModel().scrollToCaret(com.intellij.openapi.editor.ScrollType.CENTER);
+                    }
+                } catch (Exception e) {
+                    // 格式化失败，静默失败（不打扰用户）
+                    System.err.println("[MyBatis SQL Logger] Format error: " + e.getMessage());
+                }
+            });
+        });
+    }
+    
+    /**
+     * 检测 SQL 类型
+     */
+    private String detectSqlType(String sql) {
+        String upperSql = sql.toUpperCase().trim();
+        
+        if (upperSql.startsWith("SELECT")) {
+            return "SELECT";
+        } else if (upperSql.startsWith("INSERT")) {
+            return "INSERT";
+        } else if (upperSql.startsWith("UPDATE")) {
+            return "UPDATE";
+        } else if (upperSql.startsWith("DELETE")) {
+            return "DELETE";
+        } else {
+            return "SELECT"; // 默认使用 SELECT 格式化
+        }
     }
 
     /**
