@@ -142,12 +142,16 @@ public class SqlFormatter {
             
             // 检查是否有 DISTINCT、ALL 等修饰符
             String modifier = "";
+            String indent = "       "; // 默认为 "SELECT " 的长度 (7个空格)
+            
             if (fieldsSection.toUpperCase().startsWith("DISTINCT ")) {
                 modifier = "DISTINCT ";
                 fieldsSection = fieldsSection.substring(9).trim();
+                indent = "                "; // "SELECT DISTINCT " 的长度 (16个空格)
             } else if (fieldsSection.toUpperCase().startsWith("ALL ")) {
                 modifier = "ALL ";
                 fieldsSection = fieldsSection.substring(4).trim();
+                indent = "           "; // "SELECT ALL " 的长度 (11个空格)
             }
             
             // 格式化字段列表：每个字段一行，统一缩进
@@ -155,7 +159,7 @@ public class SqlFormatter {
             if (fields.length > 0) {
                 result.append(" ").append(modifier).append(fields[0].trim());
                 for (int i = 1; i < fields.length; i++) {
-                    result.append(",\n").append("                ").append(fields[i].trim());
+                    result.append(",\n").append(indent).append(fields[i].trim());
                 }
             }
             result.append("\n");

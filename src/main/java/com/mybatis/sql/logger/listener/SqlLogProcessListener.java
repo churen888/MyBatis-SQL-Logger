@@ -24,6 +24,8 @@ public class SqlLogProcessListener implements ProcessListener {
         this.project = project;
     }
 
+    private final StringBuilder lineBuffer = new StringBuilder();
+
     @Override
     public void startNotified(@NotNull ProcessEvent event) {
         // 进程启动时初始化
@@ -32,20 +34,51 @@ public class SqlLogProcessListener implements ProcessListener {
     @Override
     public void processTerminated(@NotNull ProcessEvent event) {
         // 进程终止时清理
+        synchronized (lineBuffer) {
+            if (lineBuffer.length() > 0) {
+                processLine(lineBuffer.toString());
+                lineBuffer.setLength(0);
+            }
+        }
     }
 
     @Override
     public void onTextAvailable(@NotNull ProcessEvent event, @NotNull Key outputType) {
         String text = event.getText();
         
-        if (text == null || text.trim().isEmpty()) {
+        if (text == null || text.isEmpty()) {
             return;
         }
         
+        synchronized (lineBuffer) {
+            lineBuffer.append(text);
+            
+            // 优化：只有当检测到完整的换行符时才处理
+            // 避免因日志被截断导致只处理了一半的行
+            int lineEndIndex;
+            while ((lineEndIndex = lineBuffer.indexOf("\n")) != -1) {
+                String line = lineBuffer.substring(0, lineEndIndex);
+                // 处理回车符 \r (Windows: \r\n, Linux: \n)
+                if (line.endsWith("\r")) {
+                    line = line.substring(0, line.length() - 1);
+                }
+                
+                processLine(line);
+                
+                // 移除已处理的行
+                lineBuffer.delete(0, lineEndIndex + 1);
+            }
+        }
+    }
+
+    private void processLine(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return;
+        }
+
         // 调试：输出接收到的原始文本
         if (text.contains("Preparing") || text.contains("Parameters")) {
-            LOG.debug("[ProcessListener] 接收到文本: " + text);
-            LOG.debug("[ProcessListener] 文本长度: " + text.length());
+            LOG.debug("[ProcessListener] 处理行: " + text);
         }
 
         // 解析日志行

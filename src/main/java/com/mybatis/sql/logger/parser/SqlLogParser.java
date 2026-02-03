@@ -14,21 +14,33 @@ public class SqlLogParser {
 
     private static final Logger LOG = Logger.getInstance(SqlLogParser.class);
 
-    // MyBatis Preparing 标记正则 - 只关注 MyBatis 的输出，不管日志前缀
-    // 优先匹配到日志级别关键字前，如果没有则匹配到行尾
+    // MyBatis Preparing 标记正则
     private static final Pattern PREPARING_PATTERN = Pattern.compile(
-            "==>\\s*Preparing:\\s*(.+?)(?:\\s+(?:DEBUG|INFO|WARN|ERROR|TRACE)|$)",
+            "==>\\s*Preparing:\\s*(.+?)(?:\\s+\\b(?:DEBUG|INFO|WARN|ERROR|TRACE)\\b|$)",
             Pattern.CASE_INSENSITIVE
     );
 
     // MyBatis Parameters 标记正则
     private static final Pattern PARAMETERS_PATTERN = Pattern.compile(
-            "==>\\s*Parameters:\\s*(.+?)(?:\\s+(?:DEBUG|INFO|WARN|ERROR|TRACE)|$)",
+            "==>\\s*Parameters:\\s*(.+?)(?:\\s+\\b(?:DEBUG|INFO|WARN|ERROR|TRACE)\\b|$)",
+            Pattern.CASE_INSENSITIVE
+    );
+
+    // MyBatis Parameters 宽松匹配正则 (处理前缀被截断的情况)
+    private static final Pattern PARAMETERS_PATTERN_LOOSE = Pattern.compile(
+            "Parameters:\\s*(.+?)(?:\\s+\\b(?:DEBUG|INFO|WARN|ERROR|TRACE)\\b|$)",
             Pattern.CASE_INSENSITIVE
     );
 
     private String currentSql = null;
     private final List<String> sqlBuffer = new ArrayList<>();
+
+    /**
+     * 判断是否正在处理多行 SQL
+     */
+    public boolean hasPendingSql() {
+        return currentSql != null;
+    }
 
     /**
      * 解析单行日志
@@ -41,8 +53,23 @@ public class SqlLogParser {
         // 匹配 Preparing 标记
         Matcher preparingMatcher = PREPARING_PATTERN.matcher(line);
         if (preparingMatcher.find()) {
-            // 直接使用正则提取的SQL，不再需要清理
-            currentSql = preparingMatcher.group(1).trim();
+            String sqlPart = preparingMatcher.group(1).trim();
+            
+            // 如果提取的 SQL 结尾包含明显的日志后缀（例如时间戳、线程号等），尝试去除
+            // 这种情况通常发生在正则过于贪婪，或者日志格式比较特殊时
+            if (containsLogPattern(sqlPart)) {
+                // 简单的尝试：如果包含 DEBUG/INFO 等，截断
+                String[] levels = {"DEBUG", "INFO", "WARN", "ERROR", "TRACE"};
+                for (String level : levels) {
+                    int idx = sqlPart.indexOf(level);
+                    if (idx > 0) {
+                        sqlPart = sqlPart.substring(0, idx).trim();
+                        break;
+                    }
+                }
+            }
+            
+            currentSql = sqlPart;
             sqlBuffer.clear();
             sqlBuffer.add(currentSql);
             
@@ -50,14 +77,6 @@ public class SqlLogParser {
             LOG.debug("========== Preparing ==========");
             LOG.debug("原始行: " + line);
             LOG.info("提取SQL: " + currentSql);
-            LOG.debug("匹配开始位置: " + preparingMatcher.start());
-            LOG.debug("匹配结束位置: " + preparingMatcher.end());
-            LOG.debug("行总长度: " + line.length());
-            
-            // 关键判断：如果匹配结束位置 == 行长度，说明SQL已完整提取，不再收集后续行
-            boolean sqlComplete = (preparingMatcher.end() >= line.trim().length());
-            LOG.debug("SQL是否完整: " + sqlComplete);
-            LOG.debug("==============================");
             
             return null;
         }
@@ -65,8 +84,6 @@ public class SqlLogParser {
         // ========================================
         // 智能多行SQL收集策略
         // ========================================
-        // 问题：ProcessListener按小片段接收日志，导致日志前缀被逐个单词发送
-        // 解决：只收集以SQL关键字开头的行，拒绝日志碎片
         if (currentSql != null && !line.contains("Parameters:")) {
             String trimmed = line.trim();
                     
@@ -76,7 +93,10 @@ public class SqlLogParser {
             }
                     
             // 只收集明确以SQL关键字开头的行（真正的SQL延续行）
-            if (!trimmed.isEmpty() && startsWithSqlKeyword(trimmed)) {
+            // 使用更宽松的 isSqlContent 判断，支持字段换行的情况
+            boolean isContent = isSqlContent(trimmed);
+            
+            if (!trimmed.isEmpty() && isContent) {
                 LOG.info("[多行收集] 收集SQL延续行: " + trimmed);
                 sqlBuffer.add(trimmed);
                 currentSql = String.join(" ", sqlBuffer);
@@ -88,7 +108,15 @@ public class SqlLogParser {
 
         // 匹配 Parameters 标记
         Matcher parametersMatcher = PARAMETERS_PATTERN.matcher(line);
-        if (parametersMatcher.find() && currentSql != null) {
+        boolean parametersFound = parametersMatcher.find();
+        
+        // 如果标准正则未匹配到，尝试使用宽松正则
+        if (!parametersFound && line.trim().startsWith("Parameters:")) {
+            parametersMatcher = PARAMETERS_PATTERN_LOOSE.matcher(line);
+            parametersFound = parametersMatcher.find();
+        }
+
+        if (parametersFound && currentSql != null) {
             String parametersStr = parametersMatcher.group(1).trim();
             LOG.debug("Parameters - 原始行: " + line);
             LOG.debug("Parameters - 提取参数: " + parametersStr);
