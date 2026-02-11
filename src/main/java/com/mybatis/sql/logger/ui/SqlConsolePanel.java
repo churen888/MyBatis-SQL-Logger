@@ -45,6 +45,8 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
     private final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private final List<RangeHighlighter> highlighters = new ArrayList<>();
     private EditorSearchSession searchSession;
+    private volatile boolean isAutoScroll = true;
+    private volatile boolean isUpdating = false;
 
     public SqlConsolePanel(Project project) {
         super(new BorderLayout());
@@ -72,6 +74,41 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
             settings.setIndentGuidesShown(true);
             settings.setUseSoftWraps(false);
         }
+
+        // 添加滚动监听器，实现智能滚动
+        editor.getScrollingModel().addVisibleAreaListener(e -> {
+            // 如果是代码触发的更新（如插入文本或自动滚动），忽略此次事件
+            if (isUpdating) {
+                return;
+            }
+
+            Rectangle oldRect = e.getOldRectangle();
+            Rectangle newRect = e.getNewRectangle();
+
+            // 如果没有发生垂直滚动（例如只是横向滚动），忽略
+            if (oldRect != null && newRect != null && oldRect.y == newRect.y) {
+                return;
+            }
+
+            Rectangle visibleArea = editor.getScrollingModel().getVisibleArea();
+            int totalHeight = editor.getContentComponent().getHeight();
+            int visibleBottom = visibleArea.y + visibleArea.height;
+
+            // 允许一定的误差（放宽到 30 像素，避免误判）
+            boolean isAtBottom = (totalHeight - visibleBottom) < 30;
+
+            if (isAtBottom) {
+                if (!isAutoScroll) {
+                    isAutoScroll = true;
+                }
+            } else {
+                // 如果不在底部，只有当用户明确"向上"滚动时，才取消自动滚动
+                // 这样可以避免插入文本导致 totalHeight 增加但视口未动（看起来像向下滚动或不动）时的误判
+                if (isAutoScroll && oldRect != null && newRect != null && newRect.y < oldRect.y) {
+                    isAutoScroll = false;
+                }
+            }
+        });
 
         // 创建工具栏
         JPanel toolbarPanel = createToolbar();
@@ -360,35 +397,42 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
     private void appendSqlToEditor(SqlLogParser.ParsedSql parsedSql) {
         ApplicationManager.getApplication().invokeLater(() -> {
             WriteCommandAction.runWriteCommandAction(project, () -> {
-                String timestamp = timeFormat.format(new Date());
-                String operation = parsedSql.getOperation();
-                String border = "═".repeat(59);  // 统一使用双线框
-                
-                int startOffset = editor.getDocument().getTextLength();
-                
-                // 构建 SQL 块内容
-                StringBuilder sqlBlock = new StringBuilder();
-                // 顶部边框
-                sqlBlock.append(border).append("\n");
-                // 标题行
-                sqlBlock.append(operation).append(" [").append(timestamp).append("]\n");
-                // 分隔线
-                sqlBlock.append("─".repeat(59)).append("\n");
-                // SQL 内容
-                sqlBlock.append(parsedSql.getFormattedSql()).append("\n");
-                // 底部边框
-                sqlBlock.append(border).append("\n\n");
-                
-                // 追加到文档末尾
-                editor.getDocument().insertString(startOffset, sqlBlock.toString());
-                
-                int endOffset = editor.getDocument().getTextLength();
-                
-                // 添加颜色高亮
-                addColorHighlightForRange(startOffset, endOffset, parsedSql.getSqlType());
-                
-                // 滚动到底部
-                scrollToBottom();
+                isUpdating = true;
+                try {
+                    String timestamp = timeFormat.format(new Date());
+                    String operation = parsedSql.getOperation();
+                    String border = "═".repeat(59);  // 统一使用双线框
+
+                    int startOffset = editor.getDocument().getTextLength();
+
+                    // 构建 SQL 块内容
+                    StringBuilder sqlBlock = new StringBuilder();
+                    // 顶部边框
+                    sqlBlock.append(border).append("\n");
+                    // 标题行
+                    sqlBlock.append(operation).append(" [").append(timestamp).append("]\n");
+                    // 分隔线
+                    sqlBlock.append("─".repeat(59)).append("\n");
+                    // SQL 内容
+                    sqlBlock.append(parsedSql.getFormattedSql()).append("\n");
+                    // 底部边框
+                    sqlBlock.append(border).append("\n\n");
+
+                    // 追加到文档末尾
+                    editor.getDocument().insertString(startOffset, sqlBlock.toString());
+
+                    int endOffset = editor.getDocument().getTextLength();
+
+                    // 添加颜色高亮
+                    addColorHighlightForRange(startOffset, endOffset, parsedSql.getSqlType());
+
+                    // 只有在自动滚动开启时才滚动到底部
+                    if (isAutoScroll) {
+                        doScrollToBottom();
+                    }
+                } finally {
+                    isUpdating = false;
+                }
             });
         });
     }
@@ -475,20 +519,57 @@ public class SqlConsolePanel extends JPanel implements Disposable, SqlConsoleSer
     }
     
     /**
+     * 获取自动滚动状态
+     */
+    public boolean isAutoScroll() {
+        return isAutoScroll;
+    }
+
+    /**
+     * 设置自动滚动状态
+     */
+    public void setAutoScroll(boolean autoScroll) {
+        this.isAutoScroll = autoScroll;
+        if (autoScroll) {
+            scrollToBottom();
+        }
+    }
+
+    /**
      * 滚动到底部
      */
     public void scrollToBottom() {
-        ApplicationManager.getApplication().invokeLater(() -> {
-            WriteCommandAction.runWriteCommandAction(project, () -> {
-                int textLength = editor.getDocument().getTextLength();
-                if (textLength > 0) {
-                    // 移动光标到末尾
-                    editor.getCaretModel().moveToOffset(textLength);
-                    // 滚动编辑器使光标可见
-                    editor.getScrollingModel().scrollToCaret(com.intellij.openapi.editor.ScrollType.MAKE_VISIBLE);
-                }
-            });
-        });
+        // 强制滚动到底部时，重新开启自动滚动
+        this.isAutoScroll = true;
+
+        Runnable scrollTask = () -> {
+            isUpdating = true;
+            try {
+                doScrollToBottom();
+            } finally {
+                isUpdating = false;
+            }
+        };
+
+        if (ApplicationManager.getApplication().isDispatchThread()) {
+            scrollTask.run();
+        } else {
+            ApplicationManager.getApplication().invokeLater(scrollTask);
+        }
+    }
+
+    /**
+     * 执行滚动到底部的实际逻辑（不包含 isUpdating 锁和线程调度）
+     * 必须在 EDT 中调用
+     */
+    private void doScrollToBottom() {
+        int textLength = editor.getDocument().getTextLength();
+        if (textLength > 0) {
+            // 移动光标到末尾
+            editor.getCaretModel().moveToOffset(textLength);
+            // 滚动编辑器使光标可见
+            editor.getScrollingModel().scrollToCaret(com.intellij.openapi.editor.ScrollType.MAKE_VISIBLE);
+        }
     }
 
     @Override
