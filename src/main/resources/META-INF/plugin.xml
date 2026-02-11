@@ -41,6 +41,15 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h3>Version 1.0.4 (2026-02-11)</h3>
+        <ul>
+            <li>✨ <b>智能滚动模式</b>：全新设计的控制台滚动体验，自动识别用户意图</li>
+            <li>✨ <b>SQL 格式化增强</b>：动态计算缩进宽度，SELECT 字段对齐更自然</li>
+            <li>✅ 修复当字段名包含 error (如 error_msg) 时导致 SQL 截断的问题</li>
+            <li>✅ 修复自动滚动与手动滚动冲突的问题，提升交互体验</li>
+            <li>🔧 优化 ScrollToBottomAction 按钮状态，实时反映滚动模式</li>
+        </ul>
+
         <h3>Version 1.0.3 (2026-01-28)</h3>
         <ul>
             <li>🆕 推出重新设计精美的logo和图标</li>
