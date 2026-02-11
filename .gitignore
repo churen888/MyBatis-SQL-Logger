@@ -1,3 +1,9 @@
+### outer ###
+.claude
+.xcodemap
+
+
+### java and vue ###
 .gradle/
 .idea/
 .vscode/
