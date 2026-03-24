@@ -126,24 +126,24 @@ public class SqlFormatter {
 
         StringBuilder result = new StringBuilder();
         String upperSql = sql.toUpperCase();
-        
+
         // 1. 处理 SELECT 子句
         int selectIndex = upperSql.indexOf("SELECT");
         int selectEnd = selectIndex + 6;
         int fromIndex = upperSql.indexOf("FROM");
-        
+
         if (fromIndex > selectEnd) {
             // SELECT 关键字
             String selectPart = sql.substring(selectIndex, selectEnd);
             result.append(selectPart);
-            
+
             // 获取字段列表（可能包含 DISTINCT 等修饰符）
             String fieldsSection = sql.substring(selectEnd, fromIndex).trim();
-            
+
             // 检查是否有 DISTINCT、ALL 等修饰符
             String modifier = "";
             String indent = "       "; // 默认为 "SELECT " 的长度 (7个空格)
-            
+
             if (fieldsSection.toUpperCase().startsWith("DISTINCT ")) {
                 modifier = "DISTINCT ";
                 fieldsSection = fieldsSection.substring(9).trim();
@@ -153,7 +153,7 @@ public class SqlFormatter {
                 fieldsSection = fieldsSection.substring(4).trim();
                 indent = "           "; // "SELECT ALL " 的长度 (11个空格)
             }
-            
+
             // 格式化字段列表：每个字段一行，统一缩进
             String[] fields = fieldsSection.split(",");
             if (fields.length > 0) {
@@ -163,19 +163,19 @@ public class SqlFormatter {
                 }
             }
             result.append("\n");
-            
+
             // 2. 处理 FROM 子句
-            int joinIndex = findNextKeywordIndex(upperSql, fromIndex, 
-                "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "FULL JOIN", "CROSS JOIN", "JOIN",
-                "WHERE", "GROUP BY", "ORDER BY", "LIMIT", "UNION", "HAVING");
-            
+            int joinIndex = findNextKeywordIndex(upperSql, fromIndex,
+                    "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "FULL JOIN", "CROSS JOIN", "JOIN",
+                    "WHERE", "GROUP BY", "ORDER BY", "LIMIT", "UNION", "HAVING");
+
             if (joinIndex < 0) {
                 joinIndex = sql.length();
             }
-            
+
             String fromClause = sql.substring(fromIndex, joinIndex).trim();
             result.append("FROM ").append(fromClause.substring(4).trim()).append("\n");
-            
+
             // 3. 处理 JOIN 子句
             if (joinIndex < sql.length()) {
                 String remaining = sql.substring(joinIndex);
@@ -183,10 +183,10 @@ public class SqlFormatter {
                 result.append(remaining);
             }
         }
-        
+
         return result.toString();
     }
-    
+
     /**
      * 格式化 JOIN 子句
      */
@@ -194,19 +194,19 @@ public class SqlFormatter {
         StringBuilder result = new StringBuilder();
         String upperSql = sql.toUpperCase();
         int currentPos = 0;
-        
+
         while (currentPos < sql.length()) {
             // 查找下一个 JOIN
             int nextJoinIndex = findNextKeywordIndex(upperSql, currentPos,
-                "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "FULL JOIN", "CROSS JOIN", "JOIN");
-            
+                    "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "FULL JOIN", "CROSS JOIN", "JOIN");
+
             if (nextJoinIndex < 0) {
                 // 没有更多 JOIN，处理剩余部分（WHERE/GROUP BY/ORDER BY 等）
                 String remaining = sql.substring(currentPos);
                 result.append(formatWhereAndOtherClauses(remaining));
                 break;
             }
-            
+
             // 确定 JOIN 类型和长度
             String joinType = "";
             int joinTypeLength = 0;
@@ -217,14 +217,14 @@ public class SqlFormatter {
                     break;
                 }
             }
-            
+
             // 查找 ON 子句或下一个 JOIN
             int onIndex = upperSql.indexOf(" ON ", nextJoinIndex + joinTypeLength);
             int nextJoinAfterCurrent = findNextKeywordIndex(upperSql, nextJoinIndex + joinTypeLength,
-                "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "FULL JOIN", "CROSS JOIN", "JOIN");
+                    "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "FULL JOIN", "CROSS JOIN", "JOIN");
             int whereIndex = findNextKeywordIndex(upperSql, nextJoinIndex + joinTypeLength,
-                "WHERE", "GROUP BY", "ORDER BY", "LIMIT", "HAVING");
-            
+                    "WHERE", "GROUP BY", "ORDER BY", "LIMIT", "HAVING");
+
             // 确定此 JOIN 子句的结束位置
             int joinEndIndex = sql.length();
             if (nextJoinAfterCurrent > 0) {
@@ -233,7 +233,7 @@ public class SqlFormatter {
             if (whereIndex > 0) {
                 joinEndIndex = Math.min(joinEndIndex, whereIndex);
             }
-            
+
             // 提取表名和 ON 条件
             String joinContent;
             if (onIndex > 0 && onIndex < joinEndIndex) {
@@ -241,43 +241,49 @@ public class SqlFormatter {
                 String onPart = sql.substring(onIndex + 4, joinEndIndex).trim();
                 // JOIN 和 ON 在同一行，整体缩进
                 result.append("         ").append(joinType).append(" ").append(tablePart)
-                      .append(" ON ").append(onPart).append("\n");
+                        .append(" ON ").append(onPart).append("\n");
             } else {
                 joinContent = sql.substring(nextJoinIndex, joinEndIndex).trim();
                 result.append("         ").append(joinContent).append("\n");
             }
-            
+
             currentPos = joinEndIndex;
         }
-        
+
         return result.toString();
     }
-    
+
     /**
      * 格式化 WHERE 和其他子句
      */
     private static String formatWhereAndOtherClauses(String sql) {
         StringBuilder result = new StringBuilder();
         String upperSql = sql.toUpperCase();
-        
+
         // 查找 WHERE
         int whereIndex = upperSql.indexOf("WHERE");
         if (whereIndex >= 0) {
+            // 保留 WHERE 前面的内容（如 UPDATE...SET、DELETE FROM 等）
+            String beforeWhere = sql.substring(0, whereIndex).trim();
+            if (!beforeWhere.isEmpty()) {
+                result.append(beforeWhere).append("\n");
+            }
+
             result.append("WHERE ");
-            
+
             // 查找 WHERE 子句的结束位置
             int whereEndIndex = findNextKeywordIndex(upperSql, whereIndex + 5,
-                "GROUP BY", "ORDER BY", "LIMIT", "HAVING", "UNION");
+                    "GROUP BY", "ORDER BY", "LIMIT", "HAVING", "UNION");
             if (whereEndIndex < 0) {
                 whereEndIndex = sql.length();
             }
-            
+
             String whereClause = sql.substring(whereIndex + 5, whereEndIndex).trim();
             // 格式化 WHERE 条件：AND/OR 左对齐
             whereClause = whereClause.replaceAll("(?i)\\s+AND\\s+", "\n  AND ")
-                                   .replaceAll("(?i)\\s+OR\\s+", "\n  OR ");
+                    .replaceAll("(?i)\\s+OR\\s+", "\n  OR ");
             result.append(whereClause).append("\n");
-            
+
             // 处理剩余部分
             if (whereEndIndex < sql.length()) {
                 result.append(formatOrderGroupBy(sql.substring(whereEndIndex)));
@@ -286,21 +292,21 @@ public class SqlFormatter {
             // 没有 WHERE，直接处理其他子句
             result.append(formatOrderGroupBy(sql));
         }
-        
+
         return result.toString();
     }
-    
+
     /**
      * 格式化 ORDER BY、GROUP BY、HAVING、LIMIT 等子句
      */
     private static String formatOrderGroupBy(String sql) {
         StringBuilder result = new StringBuilder();
         String upperSql = sql.toUpperCase().trim();
-        
+
         if (upperSql.isEmpty()) {
             return "";
         }
-        
+
         // GROUP BY
         if (upperSql.startsWith("GROUP BY")) {
             int groupByEnd = findNextKeywordIndex(upperSql, 8, "HAVING", "ORDER BY", "LIMIT", "UNION");
@@ -336,10 +342,10 @@ public class SqlFormatter {
         else {
             result.append(sql.trim());
         }
-        
+
         return result.toString();
     }
-    
+
     /**
      * 查找下一个关键字的位置
      */
@@ -355,8 +361,6 @@ public class SqlFormatter {
         }
         return minIndex;
     }
-
-
 
 
 }

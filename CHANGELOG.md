@@ -1,5 +1,45 @@
  版本变更日志 (CHANGELOG)
 
+# [1.0.5] - 2026-03-24
+
+### 🐛 问题修复
+- **修复 UPDATE 语句格式化丢失问题**:
+  - 修复 `formatWhereAndOtherClauses()` 方法导致 WHERE 前面内容丢失的严重 Bug
+  - 问题现象：UPDATE/DELETE 语句格式化后只显示 WHERE 子句，丢失 UPDATE...SET 和 DELETE FROM 部分
+  - 根本原因：`formatWhereAndOtherClauses()` 方法只添加了 "WHERE " 关键字，完全丢弃了 WHERE 前面的 SQL 内容
+  - 修复方案：在添加 WHERE 关键字前，先提取并保留 WHERE 前面的内容（`sql.substring(0, whereIndex)`）
+  - 影响范围：所有 UPDATE 和 DELETE 语句的格式化，以及 SELECT 语句中 JOIN 子句的 WHERE 条件
+  
+- **修复 UPDATE 语句表名丢失问题**:
+  - 修复 `formatUpdateStatement()` 方法中表名提取错误
+  - 问题现象：UPDATE 语句格式化后丢失表名
+  - 根本原因：错误的字符串截取方式导致表名信息丢失
+  - 修复方案：显式提取 UPDATE 和 SET 关键字之间的表名，然后重新构建格式化后的 SQL
+  - 修复后的格式：
+    ```
+    UPDATE table_name
+    SET column1=value1,
+        column2=value2
+    WHERE condition
+    ```
+
+### 🔧 优化改进
+- **改进 `formatWhereAndOtherClauses()` 方法设计**:
+  - 增加容错处理，检查 `beforeWhere` 是否为空
+  - 优化方法注释，明确说明保留 WHERE 前面内容的逻辑
+  - 确保方法被多个地方调用时都能正确工作（UPDATE/DELETE/JOIN）
+
+### 📝 技术细节
+- 修改 `SqlFormatter.java` - 修复 `formatWhereAndOtherClauses()` 方法
+  - 新增 `beforeWhere` 变量提取并保留 WHERE 前面的内容
+  - 在 `result.append(beforeWhere).append("\n")` 后再添加 WHERE 关键字
+  - 确保所有调用此方法的地方都能正确保留完整 SQL 内容
+- 修改 `SqlFormatter.java` - 优化 `formatUpdateStatement()` 方法
+  - 显式提取表名：`String tableName = sql.substring(updateIndex + 6, setIndex).trim()`
+  - 重新构建 SQL：`"UPDATE " + tableName + "\nSET " + setClause + "\n" + sql.substring(whereIndex)`
+
+---
+
 # [1.0.4] - 2026-02-11
 
 ### ✨ 新增功能
