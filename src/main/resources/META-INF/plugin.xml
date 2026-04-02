@@ -41,6 +41,13 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h3>Version 1.0.5 (2026-03-24)</h3>
+        <ul>
+            <li>🐛 <b>修复 UPDATE/DELETE 语句格式化后内容丢失问题</b>: 格式化后的 SQL 语句显示不完整，丢失 WHERE 前面的内容</li>
+            <li>🐛 <b>修复 UPDATE 语句表名显示丢失问题</b>: UPDATE 语句格式化后表名信息丢失</li>
+            <li>🔧 <b>优化格式化算法容错性</b>: 提升复杂 SQL 格式化的稳定性</li>
+        </ul>
+
         <h3>Version 1.0.4 (2026-02-11)</h3>
         <ul>
             <li>✨ <b>智能滚动模式</b>：全新设计的控制台滚动体验，自动识别用户意图</li>
